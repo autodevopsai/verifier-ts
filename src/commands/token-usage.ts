@@ -30,11 +30,30 @@ export async function tokenUsageCommand(options: { period?: 'hourly' | 'daily' |
   const table = new Table({ head: ['Agent', 'Calls', 'Tokens', 'Cost'], style: { head: ['cyan'] } });
   usage.forEach((data, agent) => table.push([agent, `${data.calls}`, data.tokens.toLocaleString(), `$${data.cost.toFixed(2)}`]));
   console.log(table.toString());
-  const budgetUsed = config.budgets.daily_tokens ? (totalTokens / config.budgets.daily_tokens) * 100 : 0;
-  const color = budgetUsed > 90 ? chalk.red : budgetUsed > 70 ? chalk.yellow : chalk.green;
   console.log('Total Tokens:', totalTokens.toLocaleString());
   console.log('Total Cost:', `$${totalCost.toFixed(2)}`);
-  console.log('Budget Used:', color(`${budgetUsed.toFixed(1)}%`));
+
+  let budgetTokens: number | undefined;
+  switch (period) {
+    case 'hourly':
+      budgetTokens = config.budgets.daily_tokens / 24;
+      break;
+    case 'daily':
+      budgetTokens = config.budgets.daily_tokens;
+      break;
+    case 'weekly':
+      budgetTokens = config.budgets.daily_tokens * 7;
+      break;
+    case 'monthly':
+      // No monthly token budget, only cost. Could estimate, but better to be explicit.
+      break;
+  }
+
+  if (budgetTokens) {
+    const budgetUsed = budgetTokens > 0 ? (totalTokens / budgetTokens) * 100 : 0;
+    const color = budgetUsed > 90 ? chalk.red : budgetUsed > 70 ? chalk.yellow : chalk.green;
+    console.log('Budget Used:', color(`${budgetUsed.toFixed(1)}% of ${budgetTokens.toLocaleString()}`));
+  }
 }
 
 

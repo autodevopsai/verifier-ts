@@ -6,19 +6,13 @@ import { MetricsStore } from '../storage/metrics-store';
 const logger = new Logger('AgentRunner');
 
 export class AgentRunner {
-  private registry: Map<string, () => BaseAgent> = new Map();
   private metrics = new MetricsStore();
 
-  constructor(private config: Config) {}
-
-  register(id: string, factory: () => BaseAgent): this {
-    this.registry.set(id, factory);
-    return this;
-    }
+  constructor(private config: Config, private agents: Map<string, new () => BaseAgent>) {}
 
   getAgent(id: string): BaseAgent | null {
-    const factory = this.registry.get(id);
-    return factory ? factory() : null;
+    const AgentClass = this.agents.get(id);
+    return AgentClass ? new AgentClass() : null;
   }
 
   async runAgent(id: string, context: AgentContext): Promise<AgentResult> {
