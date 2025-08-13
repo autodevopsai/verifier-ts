@@ -3,6 +3,7 @@ import os from 'os';
 import { ConfigLoader } from '../core/config-loader';
 import fs from 'fs-extra';
 import path from 'path';
+import which from 'which';
 
 type Check = { name: string; ok: boolean; message?: string };
 
@@ -40,7 +41,11 @@ export async function doctorCommand(): Promise<void> {
   checks.push({ name: 'Provider API key (OpenAI/Anthropic)', ok: hasProviderKey, message: hasProviderKey ? 'found' : 'missing' });
 
   // Git availability (optional)
-  const gitOk = await which('git');
+  let gitOk = false;
+  try {
+    await which('git');
+    gitOk = true;
+  } catch (e) {}
   checks.push({ name: 'git present (optional)', ok: gitOk, message: gitOk ? 'found' : 'missing' });
 
   // Print results
@@ -61,15 +66,6 @@ export async function doctorCommand(): Promise<void> {
   } else {
     console.log(chalk.green('\nAll checks passed.'));
   }
-}
-
-async function which(bin: string): Promise<boolean> {
-  const paths = (process.env.PATH || '').split(path.delimiter);
-  for (const p of paths) {
-    const full = path.join(p, bin + (process.platform === 'win32' ? '.exe' : ''));
-    if (await fs.pathExists(full)) return true;
-  }
-  return false;
 }
 
 

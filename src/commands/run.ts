@@ -2,12 +2,18 @@ import chalk from 'chalk';
 import { AgentRunner } from '../core/agent-runner';
 import { ContextCollector } from '../core/context-collector';
 import { ConfigLoader } from '../core/config-loader';
-import { LintAgent } from '../agents/lint-agent';
-import { SecurityScanAgent } from '../agents/security-scan-agent';
+import { AgentLoader } from '../core/agent-loader';
 
 export async function runCommand(agentId: string, options: { files?: string[] } = {}): Promise<void> {
   const config = await ConfigLoader.load();
-  const runner = new AgentRunner(config).register('lint', () => new LintAgent()).register('security-scan', () => new SecurityScanAgent());
+  const agents = await AgentLoader.loadAgents();
+  if (!agents.has(agentId)) {
+    console.error(chalk.red(`Agent '${agentId}' not found.`));
+    console.log('Available agents:', Array.from(agents.keys()).join(', '));
+    process.exitCode = 1;
+    return;
+  }
+  const runner = new AgentRunner(config, agents);
   const contextCollector = new ContextCollector();
   const repoContext = await contextCollector.collect();
   const context = { ...repoContext } as any;

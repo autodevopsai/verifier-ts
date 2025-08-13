@@ -26,15 +26,21 @@ export async function initCommand(options: { force?: boolean } = {}): Promise<vo
 
   const config: Config = ConfigSchema.parse({
     models: { primary: answers.primaryModel },
-    providers: answers.provider === 'openai' ? { openai: { api_key: answers.apiKey } } : { anthropic: { api_key: answers.apiKey } },
+    providers: answers.provider === 'openai' ? { openai: {} } : { anthropic: {} },
     budgets: { daily_tokens: 100000, per_commit_tokens: 5000, monthly_cost: 100 },
     thresholds: { drift_score: 30, security_risk: 5, coverage_delta: -5 },
     hooks: {},
   });
 
   await ConfigLoader.save(config);
-  await fs.writeFile(path.join(baseDir, '.env'), `# Verifier CLI\n# Add additional env here\n`, 'utf-8');
+
+  const envVar = answers.provider === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
+  const envContent = `# Verifier CLI\n# Add additional env here\n${envVar}=${answers.apiKey}\n`;
+  await fs.writeFile(path.join(baseDir, '.env'), envContent, 'utf-8');
+  await fs.chmod(path.join(baseDir, '.env'), 0o600);
+
   console.log(chalk.green('✓ Verifier initialized at .verifier/'));
+  console.log(chalk.yellow('API key saved to .verifier/.env. Please ensure this file is in your .gitignore.'));
 }
 
 
