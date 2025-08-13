@@ -1,0 +1,57 @@
+{
+  "name": "verifier",
+  "version": "0.1.0",
+  "description": "Standalone CLI tool for verification tasks",
+  "bin": {
+    "verifier": "dist/cli.js"
+  },
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/cli.js || true",
+    "clean": "rm -rf dist",
+    "dev": "tsc -w",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": ["cli", "verification", "autodevops"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/autodevops.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/autodevops/issues"
+  },
+  "homepage": "https://autodevops.ai",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.23.0",
+    "chalk": "^4.1.2",
+    "cli-table3": "^0.6.3",
+    "commander": "^11.0.0",
+    "dotenv": "^16.4.5",
+    "fs-extra": "^11.2.0",
+    "inquirer": "^9.2.15",
+    "openai": "^4.52.0",
+    "simple-git": "^3.24.0",
+    "winston": "^3.10.0",
+    "yaml": "^2.4.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/inquirer": "^9.0.9",
+    "@types/node": "^20.14.2",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
+
