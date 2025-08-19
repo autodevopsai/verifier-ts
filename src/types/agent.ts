@@ -25,6 +25,7 @@ export interface AgentContext {
   diff?: string;
   files?: string[];
   env?: Record<string, string>;
+  demoMode?: boolean;
   [key: string]: any;
 }
 

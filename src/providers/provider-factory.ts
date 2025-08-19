@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import { Config } from '../types/config';
+import { DemoProvider } from './demo-provider';
 
 export interface CompletionOptions {
   json_mode?: boolean;
@@ -56,7 +57,12 @@ class AnthropicProvider implements LLMProvider {
 }
 
 export class ProviderFactory {
-  static async create(model: string, config: Config): Promise<LLMProvider> {
+  static async create(model: string, config: Config, demoMode = false): Promise<LLMProvider> {
+    // Return demo provider when in demo mode
+    if (demoMode) {
+      return new DemoProvider();
+    }
+
     const useOpenAI = model.startsWith('gpt') || !!config.providers.openai?.api_key;
     if (useOpenAI && config.providers.openai?.api_key) {
       return new OpenAIProvider(config.providers.openai.api_key, model);

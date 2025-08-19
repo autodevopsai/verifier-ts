@@ -10,6 +10,7 @@
     "build": "tsc -p tsconfig.json && chmod +x dist/cli.js || true",
     "clean": "rm -rf dist",
     "dev": "tsc -w",
+    "demo:gif": "node scripts/generate-demo-gif.js",
     "prepublishOnly": "npm run clean && npm run build"
   },
   "keywords": [

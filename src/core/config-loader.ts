@@ -10,8 +10,14 @@ export class ConfigLoader {
   private static config: Config | null = null;
   private static configPath = path.join(process.cwd(), '.verifier', 'config.yaml');
 
-  static async load(): Promise<Config> {
+  static async load(demoMode = false): Promise<Config> {
     if (this.config) return this.config;
+    
+    // In demo mode, return default config without requiring initialization
+    if (demoMode) {
+      return this.getDemoConfig();
+    }
+    
     if (!(await fs.pathExists(this.configPath))) {
       throw new Error('Verifier not initialized. Run `verifier init` first.');
     }
@@ -50,6 +56,33 @@ export class ConfigLoader {
     }
     target[keys[keys.length - 1]] = value as any;
     await this.save(config);
+  }
+
+  /**
+   * Get default configuration for demo mode
+   */
+  private static getDemoConfig(): Config {
+    return {
+      models: {
+        primary: 'gpt-4o-mini',
+        fallback: 'gpt-3.5-turbo'
+      },
+      providers: {
+        openai: { api_key: 'demo-key' },
+        anthropic: { api_key: 'demo-key' }
+      },
+      budgets: {
+        daily_tokens: 100000,
+        per_commit_tokens: 5000,
+        monthly_cost: 100
+      },
+      thresholds: {
+        drift_score: 30,
+        security_risk: 5,
+        coverage_delta: -5
+      },
+      hooks: {}
+    };
   }
 }
 

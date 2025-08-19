@@ -14,40 +14,70 @@ export class LintAgent extends BaseAgent {
   max_tokens = 0;
 
   async execute(context: AgentContext) {
+    // In demo mode, provide mock files if none provided
+    if (context.demoMode && (!context.files || context.files.length === 0)) {
+      context.files = ['src/auth/login.ts', 'src/components/UserProfile.tsx', 'src/utils/crypto.ts'];
+    }
+    
     if (!context.files || context.files.length === 0) return this.createResult({ status: 'skipped', error: 'No files to lint' });
     const issues: any[] = [];
     let totalIssues = 0;
-    for (const file of context.files) {
-      const extension = file.split('.').pop()?.toLowerCase();
-      if (!extension) continue;
-      try {
-        let lintResult: string | null = null;
-        switch (extension) {
-          case 'ts':
-          case 'tsx':
-          case 'js':
-          case 'jsx':
-            lintResult = this.runESLint(file);
-            break;
-          case 'py':
-            lintResult = this.runRuff(file);
-            break;
-          case 'go':
-            lintResult = this.runGoFmt(file);
-            break;
-          case 'rs':
-            lintResult = this.runRustFmt(file);
-            break;
-          case 'java':
-            lintResult = this.runCheckstyle(file);
-            break;
+    
+    if (context.demoMode) {
+      // Provide mock lint results for demo
+      totalIssues = Math.floor(Math.random() * 8) + 2; // 2-10 issues
+      const mockIssues = [
+        'no-unused-vars: Variable \'userData\' is defined but never used',
+        'prefer-const: \'token\' is never reassigned, use const instead',
+        'no-console: console.log statement found in production code',
+        '@typescript-eslint/no-explicit-any: Unexpected any. Specify a different type',
+        'react-hooks/exhaustive-deps: React Hook useEffect has missing dependencies'
+      ];
+      
+      for (let i = 0; i < Math.min(totalIssues, context.files.length); i++) {
+        const file = context.files[i];
+        const extension = file.split('.').pop()?.toLowerCase() || 'ts';
+        const randomIssues = mockIssues.slice(0, Math.floor(Math.random() * 3) + 1);
+        issues.push({ 
+          file, 
+          language: this.getLanguage(extension), 
+          issues: randomIssues.join('\n') 
+        });
+      }
+    } else {
+      // Normal linting process
+      for (const file of context.files) {
+        const extension = file.split('.').pop()?.toLowerCase();
+        if (!extension) continue;
+        try {
+          let lintResult: string | null = null;
+          switch (extension) {
+            case 'ts':
+            case 'tsx':
+            case 'js':
+            case 'jsx':
+              lintResult = this.runESLint(file);
+              break;
+            case 'py':
+              lintResult = this.runRuff(file);
+              break;
+            case 'go':
+              lintResult = this.runGoFmt(file);
+              break;
+            case 'rs':
+              lintResult = this.runRustFmt(file);
+              break;
+            case 'java':
+              lintResult = this.runCheckstyle(file);
+              break;
+          }
+          if (lintResult) {
+            issues.push({ file, language: this.getLanguage(extension), issues: lintResult });
+            totalIssues++;
+          }
+        } catch (error) {
+          logger.debug(`Linting failed for ${file}`, { error: error instanceof Error ? error.message : String(error) });
         }
-        if (lintResult) {
-          issues.push({ file, language: this.getLanguage(extension), issues: lintResult });
-          totalIssues++;
-        }
-      } catch (error) {
-        logger.debug(`Linting failed for ${file}`, error);
       }
     }
     const artifactsDir = path.join(process.cwd(), '.verifier', 'artifacts');
