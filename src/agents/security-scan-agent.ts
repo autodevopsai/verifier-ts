@@ -1,6 +1,7 @@
 import { BaseAgent, AgentContext } from '../types/agent';
 import { ProviderFactory } from '../providers/provider-factory';
 import { ConfigLoader } from '../core/config-loader';
+import { ReadFileTool } from '../tools/read-file-tool';
 
 export class SecurityScanAgent extends BaseAgent {
   id = 'security-scan';
@@ -8,14 +9,25 @@ export class SecurityScanAgent extends BaseAgent {
   description = 'Scans code for security vulnerabilities';
   model = 'gpt-4o-mini';
   max_tokens = 2500;
+  tools = [new ReadFileTool()];
 
   async execute(context: AgentContext) {
-    if (!context.diff && !context.demoMode) return this.createResult({ status: 'skipped', error: 'No diff available' });
+    if (!context.diff && !context.files && !context.demoMode) return this.createResult({ status: 'skipped', error: 'No diff or files available' });
+
+    let fileContent = '';
+    if (context.toolRunner && context.files && context.files.length > 0) {
+      const filePath = context.files[0];
+      const readResult = await context.toolRunner.runTool('Read', { file_path: filePath });
+      if (readResult.success) {
+        fileContent = readResult.data.content;
+      }
+    }
+
     const config = await ConfigLoader.load(context.demoMode);
     const provider = await ProviderFactory.create(this.model, config, context.demoMode);
-    const prompt = context.demoMode ? 
-      'Demo security analysis - show impressive vulnerability detection' :
-      `Analyze the following code diff for security vulnerabilities.\n\n${context.diff}\n\nRespond JSON with { "risk_score": 0, "vulnerabilities": [{"type":"","severity":"critical|high|medium|low","description":"","location":"","recommendation":""}], "summary":"" }`;
+    const prompt = context.demoMode
+      ? 'Demo security analysis - show impressive vulnerability detection'
+      : `Analyze the following code for security vulnerabilities.\n\n${fileContent || context.diff}\n\nRespond JSON with { "risk_score": 0, "vulnerabilities": [{"type":"","severity":"critical|high|medium|low","description":"","location":"","recommendation":""}], "summary":"" }`;
     
     try {
       const response = await provider.complete(prompt, { 

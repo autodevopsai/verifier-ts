@@ -123,6 +123,20 @@ program
     }
   });
 
+// Add hooks command for listing hooks
+program
+  .command('hooks')
+  .description('List all configured hooks')
+  .action(async () => {
+    try {
+      const { ConfigLoader } = await import('./core/config-loader');
+      const config = await ConfigLoader.load();
+      console.log(JSON.stringify(config.hooks, null, 2));
+    } catch (error) {
+      ErrorHandler.handleAny(error, { command: 'hooks' });
+    }
+  });
+
 // Add config command for managing configuration
 program
   .command('config')
