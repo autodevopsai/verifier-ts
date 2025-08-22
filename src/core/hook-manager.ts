@@ -3,6 +3,7 @@ import { Config } from '../types/config';
 import { Logger } from '../utils/logger';
 
 const logger = new Logger('HookManager');
+const DEFAULT_HOOK_TIMEOUT_MS = 10_000; // 10s
 
 export class HookManager {
   constructor(private config: Config) {}
@@ -69,23 +70,27 @@ export class HookManager {
   }
 
   private matcherApplies(matcher: string | undefined, toolName: string | undefined): boolean {
-    if (!matcher || matcher === '*' || matcher === '') {
-      return true;
-    }
-    if (!toolName) {
-      return false;
-    }
-
+    const m = (matcher ?? '').trim();
+    // If no matcher or wildcard, always applies (even when no toolName present, e.g., SessionStart)
+    if (m === '' || m === '*') return true;
+    // For tool-scoped matchers, require a tool name
+    if (!toolName) return false;
     try {
-      const regex = new RegExp(`^${matcher.replace(/\*/g, '.*')}$`);
+      // Escape regex specials except '*', then convert '*' → '.*'
+      const escaped = m.replace(/[.+?^${}()|\[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+      const regex = new RegExp(`^${escaped}$`);
       return regex.test(toolName);
     } catch (error) {
-      logger.error(`Invalid matcher regex: ${matcher}`, error);
+      logger.error(`Invalid matcher pattern: ${m}`, error);
       return false;
     }
   }
 
-  private runHookCommand(command: string, eventData: any, timeout?: number): Promise<{ stdout: string; stderr: string; code: number | null }> {
+  private runHookCommand(
+    command: string,
+    eventData: any,
+    timeout?: number
+  ): Promise<{ stdout: string; stderr: string; code: number | null }> {
     return new Promise((resolve) => {
       logger.debug(`Executing hook command: ${command}`);
       const projectDir = process.cwd();
@@ -96,11 +101,19 @@ export class HookManager {
           ...process.env,
           CLAUDE_PROJECT_DIR: projectDir,
         },
-        timeout,
       });
 
       let stdout = '';
       let stderr = '';
+      let settled = false;
+      let timedOut = false;
+
+      const killTimer = setTimeout(() => {
+        timedOut = true;
+        try {
+          child.kill('SIGKILL');
+        } catch {}
+      }, Math.max(1, timeout ?? DEFAULT_HOOK_TIMEOUT_MS));
 
       child.stdin.write(JSON.stringify(eventData));
       child.stdin.end();
@@ -113,14 +126,27 @@ export class HookManager {
         stderr += data.toString();
       });
 
-      child.on('close', (code) => {
+      const finalize = (code: number | null) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(killTimer);
+        if (timedOut) {
+          logger.error(`Hook timed out after ${timeout ?? DEFAULT_HOOK_TIMEOUT_MS}ms: ${command}`);
+          resolve({ stdout, stderr: (stderr ? stderr + '\n' : '') + 'Hook timed out', code: 124 });
+          return;
+        }
         if (code !== 0) {
           logger.error(`Hook command exited with code ${code}: ${command}`);
         }
         resolve({ stdout, stderr, code });
-      });
+      };
 
+      child.on('close', finalize);
+      child.on('exit', finalize);
       child.on('error', (err) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(killTimer);
         logger.error(`Failed to start hook command: ${command}`, err);
         resolve({ stdout: '', stderr: err.message, code: -1 });
       });
