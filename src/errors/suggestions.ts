@@ -81,7 +81,8 @@ export const AVAILABLE_COMMANDS = [
   'config',
   'list',
   'help',
-  'version'
+  'version',
+  'worktree'
 ];
 
 /**
