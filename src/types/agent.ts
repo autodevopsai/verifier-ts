@@ -19,6 +19,9 @@ export interface AgentResult {
   timestamp: string;
 }
 
+import { Tool } from './tool';
+import { ToolRunner } from '../core/tool-runner';
+
 export interface AgentContext {
   repoPath?: string;
   branch?: string;
@@ -26,6 +29,7 @@ export interface AgentContext {
   files?: string[];
   env?: Record<string, string>;
   demoMode?: boolean;
+  toolRunner?: ToolRunner;
   [key: string]: any;
 }
 
@@ -35,6 +39,7 @@ export abstract class BaseAgent {
   abstract description: string;
   abstract model: string | 'none';
   abstract max_tokens: number;
+  tools: Tool[] = [];
 
   protected createResult(partial: Partial<Omit<AgentResult, 'agent_id' | 'timestamp'>>): AgentResult {
     return {

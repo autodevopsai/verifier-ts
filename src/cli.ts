@@ -113,13 +113,66 @@ program
     try {
       const { AgentLoader } = await import('./core/agent-loader');
       const agents = await AgentLoader.loadAgents();
-      
-      console.log('📋 Available agents:');
-      for (const [id, agent] of agents) {
-        console.log(`  • ${id} - ${(agent as any).description || 'No description'}`);
+      const entries: { id: string; name: string; description: string }[] = [];
+      for (const [id, AgentCtor] of agents) {
+        try {
+          const instance: any = new (AgentCtor as any)();
+          entries.push({ id, name: instance.name ?? id, description: instance.description ?? '' });
+        } catch {
+          entries.push({ id, name: id, description: '' });
+        }
+      }
+      if (entries.length === 0) {
+        console.log('📋 No agents found. Add agent files under packages/verifier/src/agents/*.');
+        return;
+      }
+      console.log(`📋 Available agents (${entries.length}):`);
+      for (const e of entries.sort((a, b) => a.id.localeCompare(b.id))) {
+        console.log(`  • ${e.id} — ${e.name}${e.description ? ` — ${e.description}` : ''}`);
       }
     } catch (error) {
       ErrorHandler.handleAny(error, { command: 'list' });
+    }
+  });
+
+// Add hooks command for listing hooks
+program
+  .command('hooks')
+  .description('List all configured hooks')
+  .action(async () => {
+    try {
+      const { ConfigLoader } = await import('./core/config-loader');
+      const config = await ConfigLoader.load();
+      const hooks = (config as any).hooks || {};
+      const providers = ['generic', 'claude', 'openai', 'gemini'] as const;
+      const summarize = (obj: any) =>
+        Object.keys(obj || {}).map((event) => `${event}(${(obj[event] || []).length})`).join(', ');
+
+      let total = 0;
+      for (const p of providers) {
+        const events = hooks[p] || {};
+        const eventKeys = Object.keys(events);
+        total += eventKeys.reduce((n, k) => n + (events[k]?.length || 0), 0);
+      }
+
+      if (!total) {
+        console.log('🔧 No hooks configured. Create .verifier/config.yaml and add a hooks section.');
+        console.log('See docs/hooks.md for an example.');
+        return;
+      }
+      console.log('🔧 Configured hooks:');
+      for (const p of providers) {
+        const summary = summarize(hooks[p] || {});
+        if (summary) console.log(`  • ${p}: ${summary}`);
+      }
+    } catch (error) {
+      const msg = (error as any)?.message || '';
+      if (msg.includes('Verifier not initialized')) {
+        console.log('ℹ️  Verifier is not initialized in this repo.');
+        console.log('Run `verifier init` or check docs/hooks.md for setup.');
+        return;
+      }
+      ErrorHandler.handleAny(error, { command: 'hooks' });
     }
   });
 
