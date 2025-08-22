@@ -8,6 +8,7 @@ import { tokenUsageCommand } from './commands/token-usage';
 import { doctorCommand } from './commands/doctor';
 import { demoCommand } from './commands/demo';
 import { quickstartCommand } from './commands/quickstart';
+import { worktreeCommand } from './commands/worktree';
 import { ErrorHandler, VerifierError } from './errors/error-handler';
 import { Logger } from './utils/logger';
 import { findBestMatch, AVAILABLE_COMMANDS } from './errors/suggestions';
@@ -104,6 +105,8 @@ program
       ErrorHandler.handleAny(error, { command: 'demo', options: opts });
     }
   });
+
+program.addCommand(worktreeCommand);
 
 // Add list command for showing available agents
 program
