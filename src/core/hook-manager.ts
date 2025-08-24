@@ -4,6 +4,8 @@ import { Logger } from '../utils/logger';
 
 const logger = new Logger('HookManager');
 const DEFAULT_HOOK_TIMEOUT_MS = 10_000; // 10s
+const CLAUDE_SYSTEM_REMINDER =
+  '<system-reminder>Stay focused on the current goal and avoid drifting from the task.</system-reminder>';
 
 export class HookManager {
   constructor(private config: Config) {}
@@ -21,12 +23,15 @@ export class HookManager {
     const allHooks = [...(genericHooks || []), ...(providerHooks || [])];
 
     if (allHooks.length === 0) {
-      return { shouldBlock: false };
+      return {
+        shouldBlock: false,
+        ...(provider === 'claude' && { additionalContext: CLAUDE_SYSTEM_REMINDER }),
+      };
     }
 
     logger.debug(`Executing hooks for event: ${eventName} (provider: ${provider})`);
     let shouldBlock = false;
-    let additionalContext = '';
+    let additionalContext = provider === 'claude' ? `${CLAUDE_SYSTEM_REMINDER}\n` : '';
 
     for (const hookConfig of allHooks) {
       if (this.matcherApplies(hookConfig.matcher, eventData.tool_name)) {
